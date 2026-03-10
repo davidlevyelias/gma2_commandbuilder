@@ -1,5 +1,5 @@
--- CommandBuilder v1 basic examples
--- Run from repo root: lua .\examples\v1_basic.lua
+-- CommandBuilder basic examples
+-- Run from repo root: lua .\examples\basic.lua
 
 package.path = package.path .. ';./?.lua;../?.lua'
 

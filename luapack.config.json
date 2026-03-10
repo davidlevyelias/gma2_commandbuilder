@@ -1,0 +1,4 @@
+{
+    "entry": "CommandBuilder.lua",
+    "output": "./dist/CommandBuilder_bundle.lua"
+}

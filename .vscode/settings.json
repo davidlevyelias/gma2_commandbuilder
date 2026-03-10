@@ -1,4 +1,8 @@
 {
     "Lua.diagnostics.globals": ["gma"],
-    "Lua.runtime.version": "Lua 5.3"
+    "Lua.runtime.version": "Lua 5.3",
+    "Lua.workspace.ignoreDir": [
+        ".vscode",
+        "dist",
+    ]
 }

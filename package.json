@@ -1,0 +1,43 @@
+{
+  "name": "gma2_commandbuilder",
+  "version": "2.0.0",
+  "description": "A lightweight, fluent API for building GMA2 command strings in Lua.",
+  "main": "CommandBuilder.lua",
+  "files": [
+    "CommandBuilder.lua",
+    "src",
+    "examples",
+    "readme.md",
+    "LICENSE"
+  ],
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "bundle": "luapack --config ./luapack.config.json",
+    "bundle:analyze": "luapack --config ./luapack.config.json --analyze",
+    "bundle:minify": "luapack --config ./luapack_minify.config.json",
+    "example:basic": "lua .\\examples\\basic.lua",
+    "example:lists": "lua .\\examples\\lists_and_tokens.lua",
+    "example:chain": "lua .\\examples\\chaining_and_index.lua"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidlevyelias/gma2_commandbuilder.git"
+  },
+  "keywords": [
+    "lua",
+    "gma2",
+    "commandbuilder"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/davidlevyelias/gma2_commandbuilder/issues"
+  },
+  "homepage": "https://github.com/davidlevyelias/gma2_commandbuilder#readme",
+  "devDependencies": {
+    "@davidlevyelias/luapack": "^1.1.1"
+  }
+}

@@ -2,13 +2,18 @@
 
 A lightweight, fluent API for building GMA2 command strings in Lua.
 
-Current version: 1.0.0
+Current version: 2.0.0
 
 ## Overview
 
 CommandBuilder provides a loose, chainable interface that translates method calls into
-console command strings. Most inputs are appended verbatim; a small set of named handlers
-add special formatting (fixture/group selection lists, `/arg` flags, fade/delay ranges).
+console command strings. Most inputs are appended as-is unless a built-in or registered
+handler adds special formatting.
+
+This repository currently uses the modular implementation:
+
+- [CommandBuilder.lua](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/CommandBuilder.lua) is the entrypoint
+- [src/cmd_factory.lua](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/src/cmd_factory.lua) exposes the public API
 
 ## Import
 
@@ -21,29 +26,56 @@ local CMD = cmd.new({
 })
 ```
 
-If `execute` is omitted, `gma.cmd` is used automatically when running inside GMA2.
-Outside GMA2 (e.g. during testing), it falls back to returning the built command string.
+If `execute` is omitted, `gma.cmd` is used automatically when available.
+Outside GMA2, it falls back to returning the built command string.
+
+The module also exposes version fields:
+
+```lua
+print(cmd.VERSION)
+print(cmd._VERSION)
+```
 
 ## CMD.new(opts)
 
 Creates a new CMD instance.
 
-| Option    | Type                      | Description                                                              |
-| --------- | ------------------------- | ------------------------------------------------------------------------ |
+| Option | Type | Description |
+| --- | --- | --- |
 | `execute` | `fun(command:string):any` | Called by `.execute()` and `CMD(...)`. Defaults to `gma.cmd` when available, otherwise returns the string. |
+| `sortArgKeys` | `boolean` | When `true`, map-table args in `arg({...})` are emitted with sorted keys. Default: `false`. |
+| `builderPoolSize` | `integer` | Internal builder pool size. Default: `8`. Set `0` to disable pooling. |
+
+Pooling notes:
+
+- Pooling is an internal optimization and does not change API usage.
+- If pooling is enabled, avoid holding long-lived builders across unrelated flows.
+
+## Execution semantics
+
+Most fluent calls build a `CommandBuilder` and do not execute immediately.
+
+- Use `.execute()` to run via `opts.execute`
+- Use `.build()` to return the command string
+- Calling a builder as a function executes it (`builder()`)
+
+That means some expressions need two calls when using implicit execute:
+
+```lua
+CMD.group[2]()     -- returns builder
+CMD.group[2]()()   -- executes builder
+```
 
 ## CMD usage
 
-### Direct call (like gma.cmd)
+### Direct call style
 
 ```lua
 CMD("clearall")
 CMD("fixture %d at %d", 1, 100)
 ```
 
-Supports `string.format`-style arguments when extra values are passed.
-
-### Fluent builder
+### Fluent builder style
 
 ```lua
 CMD.feature("colorrgb").at.fade("2 thru 0 thru 2").execute()
@@ -51,10 +83,7 @@ CMD.attribute("dimmer").at(100).execute()
 CMD.store.sequence(1).cue(2).arg("merge").arg("nc").execute()
 ```
 
-### No-parens (dot-chained tokens)
-
-Accessing a key without calling it still accumulates it as a part. Use `.execute()` or
-a trailing `()` to run it.
+### No-parens tokens
 
 ```lua
 CMD.att.dimmer.execute()
@@ -64,168 +93,95 @@ CMD.clearall.chain().fixture(1, 5)()
 
 ### Implicit execute
 
-Any builder can be called as a function to execute immediately:
-
 ```lua
 CMD.clearall()()
 CMD.fixture(1, 5).raw("at 100")()
 ```
 
-Note: indexing (`CMD.group[2]`) returns a builder, not a result. A final `()` executes it:
+Indexing returns a builder, so implicit execute needs an extra final call:
 
 ```lua
-CMD.group[2]()     -- builds "group 2", does NOT execute
-CMD.group[2]()()   -- builds and executes
+CMD.group[2]()     -- returns builder
+CMD.group[2]()()   -- executes builder
 ```
 
 ## Builder methods
 
 ### `build(opts?)`
 
-Returns the command string and resets the builder.
+Returns the command string.
 
-`opts` can be:
-
-- a string — used as the part separator (default: `" "`)
-- a table `{ separator?: string, reset?: boolean }` — `reset` defaults to `true`
-
-```lua
-local s = CMD.fixture(1, 2, 3).build()       -- "fixture 1 + 2 + 3"
-local s = CMD.fixture(1).build({ reset = false }) -- keeps parts for reuse
-```
+- `opts` can be a string separator or a table `{ separator = " ", reset = true }`
+- Default separator is a space
+- Default `reset` is `true`
 
 ### `execute(opts?)`
 
-Builds the string and passes it to the `execute` function from `CMD.new`. Accepts the
-same `opts` as `build()`.
+Builds and executes via `opts.execute`. Accepts the same `opts` as `build()`.
 
 ### `raw(str)`
 
-Appends a string without any processing.
-
-```lua
-CMD.feature("colorrgb").raw("at intensity 50").execute()
-```
+Appends raw text without formatting.
 
 ### `chain(str?)`
 
-Appends a semicolon directly to the last part (no leading space), then optionally appends
-`str`. Used to chain commands within a single builder.
+Appends a semicolon directly to the last part, then optionally appends `str`.
+
+## Tokens and list mode
+
+Array tables trigger operator formatting:
+
+- `+` between values by default
+- `thru` for decimal values between `0` and `1`
+- `-` for negative numbers
+- `CMD.thru(n)`, `CMD.minus(x)`, and `CMD.plus(x)` override formatting explicitly
+
+Strings are appended as-is and do not imply minus unless wrapped in `CMD.minus()`.
+
+Examples:
 
 ```lua
-CMD.clearall().chain().fixture(1, 5).raw("at 100").execute()
--- clearall; fixture 1 + 5 at 100
+CMD.fixture(1, CMD.thru(10)).build()
+CMD.group(5, CMD.thru(10), -3).build()
+CMD.group({ 1, CMD.thru(10), CMD.minus(5), CMD.minus["foo"], CMD.plus(7) }).build()
 ```
 
-## Operator lists (fixture/group selections)
-
-The `fixture` and `group` handlers accept operator-formatted lists.
-
-**Multiple positional args:**
+Both call form and index form are supported for tokens:
 
 ```lua
-CMD.fixture(1, 2, 3, -5).build()
--- fixture 1 + 2 + 3 - 5
+CMD.thru(10)
+CMD.thru[10]
+CMD.minus(5)
+CMD.minus["foo"]
+CMD.plus(7)
+CMD.plus["foo"]
 ```
 
-**Single array table:**
+## arg()
 
-```lua
-CMD.group({ 1, CMD.thru(10), CMD.minus(5), CMD.minus["foo"] }).build()
--- group 1 thru 10 - 5 - foo
-```
+Supports flags, array tables, and map tables:
 
-**Formatting rules inside a list:**
+- `arg("merge", "nc")` -> `/merge /nc`
+- `arg({ "merge", "nc" })` -> `/merge /nc`
+- `arg({ key = "value" }, "overwrite", "nc")`
 
-| Value               | Result                      |
-| ------------------- | --------------------------- |
-| Positive number     | `+ n`                       |
-| Negative number     | `- n` (absolute value)      |
-| Decimal `0 < n < 1` | `thru <decimal part>`       |
-| String              | appended as-is (always `+`) |
-| `CMD.thru(n)`       | `thru n`                    |
-| `CMD.minus(x)`      | `- x`                       |
-| `CMD.plus(x)`       | `+ x`                       |
+Map key order behavior:
 
-## Tokens
+- Default (`sortArgKeys = false`): Lua table iteration order via `pairs`
+- Optional (`sortArgKeys = true`): alphabetical key order for deterministic output
 
-Tokens are helpers used inside selection lists or as inline range values.
-Both call form and index form work:
+`false` and `nil` values are skipped. `true` emits `/key` without `=value`.
 
-### `CMD.thru(n)` / `CMD.thru[n]`
-
-```lua
-CMD.fixture(1, CMD.thru(10)).build()   -- fixture 1 thru 10
-```
-
-### `CMD.minus(x)` / `CMD.minus[x]`
-
-```lua
-CMD.group({ 1, CMD.thru(10), CMD.minus(3) }).build()   -- group 1 thru 10 - 3
-```
-
-Passing a negative number to `CMD.minus` normalises to its absolute value in lists.
-
-### `CMD.plus(x)` / `CMD.plus[x]`
-
-```lua
-CMD.group({ 1, CMD.plus(5) }).build()   -- group 1 + 5
-```
-
-## arg handler
-
-The `arg` handler appends `/flag`-style arguments.
-
-**String / plain value** → appended with `/` prefix:
-
-```lua
-CMD.store.sequence(1).cue(2).arg("merge").arg("nc").build()
--- store sequence 1 cue 2 /merge /nc
-```
-
-**Array table** → each element gets a `/` prefix:
-
-```lua
-CMD.store.sequence(1).cue(2).arg({ "merge", "nc" }).build()
--- store sequence 1 cue 2 /merge /nc
-```
-
-**Map table** → keys are sorted, emitted as `/key` or `/key=value`:
+Example:
 
 ```lua
 CMD.appearance.macro(5).arg({ r = 100, g = 0, b = 100 }).build()
--- appearance macro 5 /b=100 /g=0 /r=100
+CMD.appearance.macro(5).arg({ key = "value" }, "overwrite", "nc").build()
 ```
 
-`false` / `nil` values are skipped. `true` values emit the key only (`/key`).
+## Raw helper
 
-## fade / delay handlers
-
-Accept a plain string or multiple values joined with `thru`:
-
-```lua
-CMD.feature("colorrgb").at.fade("2 thru 0 thru 2").execute()
--- feature colorrgb at fade 2 thru 0 thru 2
-```
-
-## CMD.chain(...)
-
-Joins multiple builders or strings into one builder with `; ` separating commands.
-
-```lua
-local combined = CMD.chain(
-    CMD.clearall(),
-    CMD.fixture(1, 5).raw("at 100"),
-    CMD.store.sequence(1).cue(1)
-)
-combined.execute()
--- clearall; fixture 1 + 5 at 100; store sequence 1 cue 1
-```
-
-## CMD.\_ raw helper
-
-`CMD._` bypasses all handler logic and appends the value directly, then continues the
-fluent chain:
+`CMD._` bypasses normal handler formatting and appends raw text directly:
 
 ```lua
 CMD._("raw text").attribute("dimmer").at(100).execute()
@@ -234,86 +190,27 @@ CMD._["raw text"].attribute("dimmer").at(100).execute()
 
 ## Indexing syntax
 
-Both `.key` and `[key]` work interchangeably anywhere in a chain:
+Both dot and bracket indexing are supported anywhere in a chain:
 
 ```lua
-CMD.group[2]().build()               -- group 2
-CMD["delete"]["macro"][2]().build()  -- delete macro 2
+CMD.group[2]().build()
+CMD["delete"]["macro"][2]().build()
 CMD.group[2]().execute()
 CMD["delete"]["macro"][2]()()
-```
-
-## CMD.register(key, handler)
-
-Registers a custom handler for a key. Handlers are shared globally across all CMD
-instances created in the same module scope.
-
-```lua
----@param builder table
----@param args any[]
----@param numArgs number
----@return table builder
-CMD.register("at", function(builder, args, numArgs)
-    -- custom formatting
-    return builder
-end)
-```
-
-If a handler already exists for `key` it is replaced immediately.
-
-## Examples
-
-Example scripts are in the `examples/` folder:
-
-- `examples/basic.lua`: quick fluent usage and direct call examples.
-- `examples/lists_and_tokens.lua`: fixture/group list formatting, tokens, and `arg()` behavior.
-- `examples/chaining_and_index.lua`: chaining, raw helper, implicit execute, and index-based access.
-
-Run from repository root:
-
-```lua
-lua .\examples\basic.lua
-lua .\examples\lists_and_tokens.lua
-lua .\examples\chaining_and_index.lua
-```
-
-## arg()
-
-Supports flags, map tables, and mixed arguments:
-
-- Non-table args are appended as flags: `arg("merge", "nc")` -> `/merge /nc`
-- Map tables are expanded as key pairs: `arg({ r = 100, g = 0 })` -> `/r=100 /g=0`
-- Mixed usage is allowed: `arg({ key = "value" }, "overwrite", "nc")`
-
-Map key order behavior:
-
-- Default (`sortArgKeys = false`): key order follows Lua table iteration order (`pairs`) and may vary.
-- Optional (`sortArgKeys = true`): keys are sorted alphabetically for deterministic output.
-
-```lua
-CMD.store.sequence(1).cue(1).arg("merge", "nc")
-CMD.appearance.macro(5).arg({ r = 100, g = 0, b = 100 })
-CMD.appearance.macro(5).arg({ key = "value" }, "overwrite", "nc")
 ```
 
 ## Handler extension
 
 Handlers are per CMD instance.
 
-### register(key, handler, opts?)
+### `register(key, handler, opts?)`
 
 Registers a custom handler for this CMD instance.
 
-- `key`: string command token to handle
-- `handler`: function `(builder, args, numArgs) -> builder`
-- `opts.override`: boolean (default `false`)
-
-Returns:
-
-- `true` when registered
-- `false, "exists"` when key already exists and override is not enabled
-- `false, "invalid-key"` for empty/non-string key
-- `false, "invalid-handler"` for non-function handler
+- `opts.override = true` replaces an existing handler
+- Returns `true` on success
+- Returns `false, "exists"` if the key already exists and override is not enabled
+- Returns `false, "invalid-key"` or `false, "invalid-handler"` for bad input
 
 ```lua
 local ok, reason = CMD:register("flash", function(builder, args, numArgs)
@@ -324,19 +221,34 @@ local ok, reason = CMD:register("flash", function(builder, args, numArgs)
     return builder
 end)
 
--- Replace existing handler explicitly
 CMD:register("flash", function(builder)
     return builder:raw("flashfast")
 end, { override = true })
 ```
 
-### unregister(key)
+### `unregister(key)`
 
 Removes a handler from this CMD instance.
 
 - Returns `true` when removed
-- Returns `false` when key is invalid or missing
+- Returns `false` when the key is invalid or missing
 
 ```lua
 CMD:unregister("flash")
+```
+
+## Examples
+
+Example scripts are in [examples](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/examples):
+
+- [examples/basic.lua](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/examples/basic.lua): quick fluent usage and direct call examples
+- [examples/lists_and_tokens.lua](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/examples/lists_and_tokens.lua): selection lists, tokens, and `arg()` behavior
+- [examples/chaining_and_index.lua](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/examples/chaining_and_index.lua): chaining, raw helper, implicit execute, and index-based access
+
+Run from repository root:
+
+```powershell
+lua .\examples\basic.lua
+lua .\examples\lists_and_tokens.lua
+lua .\examples\chaining_and_index.lua
 ```

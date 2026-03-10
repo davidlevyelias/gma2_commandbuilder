@@ -1,5 +1,5 @@
--- CommandBuilder v1 chaining and indexing examples
--- Run from repo root: lua .\examples\v1_chaining_and_index.lua
+-- CommandBuilder chaining and indexing examples
+-- Run from repo root: lua .\examples\chaining_and_index.lua
 
 package.path = package.path .. ';./?.lua;../?.lua'
 

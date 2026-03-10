@@ -1,5 +1,5 @@
--- CommandBuilder v1 list and token examples
--- Run from repo root: lua .\examples\v1_lists_and_tokens.lua
+-- CommandBuilder list and token examples
+-- Run from repo root: lua .\examples\lists_and_tokens.lua
 
 package.path = package.path .. ';./?.lua;../?.lua'
 

@@ -16,3 +16,6 @@ luacov.report.out
 *.out
 *.log
 *.tmp
+
+dist/
+node_modules/

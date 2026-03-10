@@ -1,0 +1,16 @@
+{
+    "entry": "CommandBuilder.lua",
+    "output": "./dist/CommandBuilder_bundle.lua",
+    "obfuscation": {
+        "tool": "internal",
+        "config": {
+            "minify": true,
+            "renameVariables": {
+                "enabled": true,
+                "min": 1,
+                "max": 8
+            },
+            "ascii": false
+        }
+    }
+}
