@@ -1,0 +1,4 @@
+{
+    "Lua.diagnostics.globals": ["gma"],
+    "Lua.runtime.version": "Lua 5.3"
+}
