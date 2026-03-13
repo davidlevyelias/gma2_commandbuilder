@@ -36,37 +36,49 @@ print(cmd.VERSION)
 print(cmd._VERSION)
 ```
 
-## CMD.new(opts)
+## Quick start
 
-Creates a new CMD instance.
-
-| Option | Type | Description |
-| --- | --- | --- |
-| `execute` | `fun(command:string):any` | Called by `.execute()` and `CMD(...)`. Defaults to `gma.cmd` when available, otherwise returns the string. |
-| `sortArgKeys` | `boolean` | When `true`, map-table args in `arg({...})` are emitted with sorted keys. Default: `false`. |
-| `builderPoolSize` | `integer` | Internal builder pool size. Default: `8`. Set `0` to disable pooling. |
-
-Pooling notes:
-
-- Pooling is an internal optimization and does not change API usage.
-- If pooling is enabled, avoid holding long-lived builders across unrelated flows.
-
-## Execution semantics
-
-Most fluent calls build a `CommandBuilder` and do not execute immediately.
-
-- Use `.execute()` to run via `opts.execute`
-- Use `.build()` to return the command string
-- Calling a builder as a function executes it (`builder()`)
-
-That means some expressions need two calls when using implicit execute:
+Smallest useful patterns:
 
 ```lua
-CMD.group[2]()     -- returns builder
-CMD.group[2]()()   -- executes builder
+CMD("clearall")
+CMD.fixture(1).at(100).execute()
+local command = CMD.fixture(1).at(100).build()
 ```
 
-## CMD usage
+The important distinction is:
+
+- Method calls append immediately
+- Plain dot/bracket access is lazy until the next call or next index
+- A builder only executes when you call it or call `.execute()`
+
+## Core rule
+
+If a chain starts with indexing, it needs to reach a call before you can build or execute it.
+
+```lua
+CMD.clearall        -- selects "clearall", nothing appended yet
+CMD.clearall()      -- appends "clearall", returns builder
+CMD.clearall()()    -- executes builder
+```
+
+The same rule applies to bracket indexing:
+
+```lua
+CMD.group[2]        -- still mid-chain
+CMD.group[2]()      -- now you have a builder
+CMD.group[2]()()    -- now it executes
+```
+
+If you store an indexed step in a variable, it still needs that first call:
+
+```lua
+local clear = CMD.clearall
+clear()            -- returns builder containing "clearall"
+clear()()          -- executes builder
+```
+
+## Common patterns
 
 ### Direct call style
 
@@ -96,14 +108,42 @@ CMD.clearall.chain().fixture(1, 5)()
 ```lua
 CMD.clearall()()
 CMD.fixture(1, 5).raw("at 100")()
+CMD.group[2]()()
 ```
 
-Indexing returns a builder, so implicit execute needs an extra final call:
+## Indexing and implicit execute
+
+Both dot and bracket indexing are supported anywhere in a chain:
 
 ```lua
-CMD.group[2]()     -- returns builder
-CMD.group[2]()()   -- executes builder
+CMD.group[2]().build()
+CMD["delete"]["macro"][2]().build()
+CMD.group[2]().execute()
+CMD["delete"]["macro"][2]()()
 ```
+
+Mental model:
+
+- An indexed name is a pending command word
+- The next index or call appends the previous pending word to the builder
+- After that append, builder methods such as `build`, `execute`, `raw`, and `chain` are available
+
+This is why indexed chains often need one extra `()` when you want implicit execute.
+
+## CMD.new(opts)
+
+Creates a new CMD instance.
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `execute` | `fun(command:string):any` | Called by `.execute()` and `CMD(...)`. Defaults to `gma.cmd` when available, otherwise returns the string. |
+| `sortArgKeys` | `boolean` | When `true`, map-table args in `arg({...})` are emitted with sorted keys. Default: `false`. |
+| `builderPoolSize` | `integer` | Internal builder pool size. Default: `8`. Set `0` to disable pooling. |
+
+Pooling notes:
+
+- Pooling is an internal optimization and does not change API usage.
+- If pooling is enabled, avoid holding long-lived builders across unrelated flows.
 
 ## Builder methods
 
@@ -186,17 +226,6 @@ CMD.appearance.macro(5).arg({ key = "value" }, "overwrite", "nc").build()
 ```lua
 CMD._("raw text").attribute("dimmer").at(100).execute()
 CMD._["raw text"].attribute("dimmer").at(100).execute()
-```
-
-## Indexing syntax
-
-Both dot and bracket indexing are supported anywhere in a chain:
-
-```lua
-CMD.group[2]().build()
-CMD["delete"]["macro"][2]().build()
-CMD.group[2]().execute()
-CMD["delete"]["macro"][2]()()
 ```
 
 ## Handler extension
