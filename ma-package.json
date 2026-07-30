@@ -2,5 +2,16 @@
   "schema": 1,
   "name": "gma2_commandbuilder",
   "platform": "ma2",
+  "exports": [
+    "init.lua",
+    "src",
+    "examples",
+    "package.json",
+    "ma-package.json",
+    "ma-lock.json",
+    "luapack.config.json",
+    "readme.md",
+    "LICENSE"
+  ],
   "dependencies": {}
 }
