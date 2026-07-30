@@ -1,4 +1,7 @@
 {
-    "entry": "CommandBuilder.lua",
-    "output": "./dist/CommandBuilder_bundle.lua"
+    "schemaVersion": 2,
+    "entry": "./init.lua",
+    "output": "./dist/gma2_commandbuilder.lua",
+    "luaVersion": "5.3",
+    "missing": "error"
 }

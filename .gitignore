@@ -7,15 +7,18 @@ Thumbs.db
 !.vscode/settings.json
 .idea/
 
-# Lua tooling
-.luacov
-.luacov.*
-luacov.report.out
+# Node
+node_modules/
 
-# Build/artifacts
+# Build and temporary artifacts
+dist/
+temp/
 *.out
 *.log
 *.tmp
 
-dist/
-node_modules/
+lib/
+ma-pm/
+
+# Tests are temporarily excluded from release repositories
+tests/

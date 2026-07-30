@@ -15,9 +15,14 @@ local newBuilder = builderModule.newBuilder
 
 local M = {}
 
-local VERSION = "2.0.0"
+local VERSION = "2.0.1"
 M.VERSION = VERSION
 M._VERSION = VERSION
+M.info = {
+    name = "gma2_commandbuilder",
+    version = VERSION,
+    author = "David Levy Elias",
+}
 
 ---@class CmdBuilderApi
 ---@field build fun(opts?:any):string

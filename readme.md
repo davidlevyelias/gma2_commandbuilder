@@ -2,7 +2,7 @@
 
 A lightweight, fluent API for building GMA2 command strings in Lua.
 
-Current version: 2.0.0
+Current version: 2.0.1
 
 ## Overview
 
@@ -12,8 +12,8 @@ handler adds special formatting.
 
 This repository currently uses the modular implementation:
 
-- [CommandBuilder.lua](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/CommandBuilder.lua) is the entrypoint
-- [src/cmd_factory.lua](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/src/cmd_factory.lua) exposes the public API
+- [init.lua](init.lua) is the entrypoint
+- [src/cmd_factory.lua](src/cmd_factory.lua) exposes the public API
 
 ## Import
 
@@ -268,11 +268,11 @@ CMD:unregister("flash")
 
 ## Examples
 
-Example scripts are in [examples](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/examples):
+Example scripts are in [examples](examples):
 
-- [examples/basic.lua](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/examples/basic.lua): quick fluent usage and direct call examples
-- [examples/lists_and_tokens.lua](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/examples/lists_and_tokens.lua): selection lists, tokens, and `arg()` behavior
-- [examples/chaining_and_index.lua](e:/Coding/MA2_Plugins/libraries/gma2_commandbuilder/examples/chaining_and_index.lua): chaining, raw helper, implicit execute, and index-based access
+- [examples/basic.lua](examples/basic.lua): quick fluent usage and direct call examples
+- [examples/lists_and_tokens.lua](examples/lists_and_tokens.lua): selection lists, tokens, and `arg()` behavior
+- [examples/chaining_and_index.lua](examples/chaining_and_index.lua): chaining, raw helper, implicit execute, and index-based access
 
 Run from repository root:
 
